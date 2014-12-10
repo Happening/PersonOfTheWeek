@@ -1,3 +1,4 @@
-name: Example
-description: An example plugin. Use this as the base for your own glorious plugins!
+name: Awards
+description: Who deserves the award this week?
+icon: award4
 api: 2
