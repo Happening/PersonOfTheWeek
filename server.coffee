@@ -72,7 +72,7 @@ exports.close = !->
 	name = settings.title + tr(' of the ') + periodname (Db.shared.get 'settings', 'period')
 	Event.create
 		unit: 'vote'
-		text: tr('The winner for ')+name+' is in!'
+		text: tr('The winner for ')+name+tr(' is in! Do you think you might have won?')
 		new: ['all']
 
 	# Add a comment as a divider between old and new comments

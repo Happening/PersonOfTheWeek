@@ -446,6 +446,6 @@ templates = [
 	# http://www.publicdomainpictures.net/view-image.php?image=45660&picture=donkey-in-the-meadow&large=1
 	{title: tr('Meerkat'), display: tr('The Meerkat'), description: tr('Very paranoid. Probably with good reason.'), photo:'meerkat.jpg', id: 7}
 	# http://www.publicdomainpictures.net/view-image.php?image=101843&picture=closeup-of-meerkat-face
-	{title: tr('White Tiger'), display: tr('The White Tiger'), description: tr('Very rarely seen in the wild.'), photo:'whitetiger.jpg', id: 8}
+	{title: tr('Mole'), display: tr('The Mole'), description: tr('Almost never seen.'), photo:'mole.jpg', id: 8}
 	# http://www.publicdomainpictures.net/view-image.php?image=41195&picture=white-tiger
 ]
