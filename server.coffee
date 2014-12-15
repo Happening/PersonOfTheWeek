@@ -38,16 +38,20 @@ exports.onConfig = onConfig = (config) !->
 	if not Db.shared.get 'nextround'
 		exports.start()
 
+exports.getTitle = ->
+	settings = Db.shared.get 'settings'
+	name = settings.title + tr(' of the ') + periodname (settings.period)
+
 exports.onPhoto = (info) !->
 	Db.shared.set 'settings', 'photo', info
 
-# exports.client_endRound = !->
-# 	if Plugin.userIsAdmin()
-# 		exports.close()
+exports.client_endRound = !->
+	if Plugin.userIsAdmin()
+		exports.close()
 
-# exports.client_startRound = !->
-# 	if Plugin.userIsAdmin()
-# 		exports.start()
+exports.client_startRound = !->
+	if Plugin.userIsAdmin()
+		exports.start()
 
 exports.close = !->
 	votes = {}
@@ -65,8 +69,20 @@ exports.close = !->
 			winner = uid
 
 	if winner > 0
-		Db.personal(winner).set('wins', 0|Db.personal(uid).get('wins') + 1)
+		Db.personal(winner).set('wins', (0|Db.personal(uid).get('wins')) + 1)
 		Db.shared.set 'winners', roundnumber, winner
+
+		# winningstreak = 0
+		# lw = -1
+		# for m, w of Db.shared.get 'winners'
+		# 	if parseInt(w) == lw
+		# 		winningstreak++
+		# 	else
+		# 		winningstreak = 0
+		# 	lw = parseInt(w)
+		# log "Found streak:", winningstreak
+		# Db.shared.set 'streak', winningstreak
+
 	Db.shared.set 'votesopen', false
 
 	name = settings.title + tr(' of the ') + periodname (Db.shared.get 'settings', 'period')
@@ -76,11 +92,11 @@ exports.close = !->
 		new: ['all']
 
 	# Add a comment as a divider between old and new comments
-	if Db.shared.get 'comments', 'votecomments'
-		lastcomment = Db.shared.get 'comments', 'votecomments', (Db.shared.get 'comments', 'votecomments', 'max'), 'u'
+	if Db.shared.get 'comments', Db.shared.get roundnumber
+		lastcomment = Db.shared.get 'comments', roundnumber, (Db.shared.get 'comments', 'votecomments', 'max'), 'u'
 		if lastcomment != 0
-			winnername = Plugin.userName winner
-			addComment winnername + tr(' won the round. New round started.')
+			winnername = if winner > 0 then (Plugin.userName winner) else tr('Nobody')
+			addComment winnername + tr(' won the award this ') + periodname(Db.shared.get 'settings', 'period') + '.'
 
 exports.client_vote = (v) !->
 	if (Db.shared.get 'votesopen') && (Db.shared.get 'voteclose') - Plugin.time() > 0
@@ -143,6 +159,6 @@ addComment = (comment) !->
 		s: true
 		c: comment
 
-	comments = Db.shared.createRef("comments", 'votecomments')
+	comments = Db.shared.createRef("comments", Db.shared.get 'roundcounter')
 	max = comments.incr 'max'
 	comments.set max, comment

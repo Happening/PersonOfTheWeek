@@ -22,6 +22,7 @@ Dom.css
 		fontWeight: 'bold'
 		fontSize: '1.2em'
 	'.timeremaining':
+		textAlign: 'center'
 		fontSize: '0.9em'
 		color: '#969696'
 		marginBottom: '20px'
@@ -54,149 +55,197 @@ Dom.css
 		width: '50px'
 		minHeight: '50px'
 		minWidth: '50px'
+	'.winneravatar':
+		display: 'inline-block'
+		margin: '5px'
+	'.winneravatar .selected'
+		border: '3px #{Plugin.colors().highlight} solid'
 
 exports.render = !->
-	if (Db.shared.get 'votesopen') && (Db.shared.get 'voteclose') - Plugin.time() > 0
-		pendingPage()
-	else
-		resultsPage()
+	state = Obs.create(Db.shared.get 'roundcounter')
+	Obs.observe !->
+		log "Page?", state.get(), Db.shared.get 'roundcounter'
+		if state.get() == (Db.shared.get 'roundcounter') && (Db.shared.get 'votesopen') && (Db.shared.get 'voteclose') - Plugin.time() > 0
+			pendingPage()
+		else
+			resultsPage state
 	
-	require('social').renderComments 'votecomments'
+		Dom.div !->
+			Dom.style
+				marginTop: '25px'
+			comments = state.get()
+			commentsclosed = state.get() != Db.shared.get 'roundcounter'
+			require('social').renderComments comments,
+				closed: commentsclosed
 	
-	if Db.shared.get 'winners'
-		Dom.h2 !->
-			Dom.text tr("Previous rounds")
-		Ui.item !->
-			Dom.text tr("Hall of Fame")
-			Dom.onTap !->
-				Modal.show 'Hall of Fame', hallOfFame
+		hallOfFame state
 
-pendingPage = !->
-	Dom.div !->
-		Dom.cls 'titleSubheader'
-		Dom.text tr('who will be')
+pendingPage = (state) !->
+	log "Pending Page!"
 	Dom.div !->
 		Dom.cls 'titleHeader'
 		Dom.text Db.shared.get 'settings', 'title'
-	Dom.div !->
-		Dom.cls 'titleSubheader'
-		Dom.text tr("of the ") + periodname()
-	winnerPicture()
+		Dom.text tr(" of the ") + periodname()
 	Dom.div !->
 		Dom.text Db.shared.get 'settings', 'description'
 		Dom.style
 			textAlign: 'center'
+	winnerPicture state
 
 	personalVote = Obs.create(0|Db.personal.get 'vote')
-	Dom.div !->
-		Dom.cls "memberselect"
-		selectMember
-			name: 'vote'
-			title: tr("Voted for")
-			value: personalVote.func()
-			selectTitle: tr("Vote for")
-			onSave: (v) !->
-				Server.sync 'vote', v, !->
-					Db.personal.set 'vote', v
+	Obs.observe !->
+		if personalVote.get()
+			Dom.div !->
+				Dom.cls 'memberselect'
+				Form.box !->
+					Dom.style fontSize: '125%', paddingRight: '56px'
+					Dom.text tr("Voted for")
+					v = personalVote.get()
+					Dom.div !->
+						Dom.style color: (if v then 'inherit' else '#aaa')
+						Dom.text (if v then Plugin.userName(v) else tr("Nobody"))
+					if personalVote.get()
+						Ui.avatar Plugin.userAvatar(v), !->
+							Dom.style position: 'absolute', right: '6px', top: '50%', marginTop: '-20px'
+					Dom.onTap !->
+						selectMemberModal personalVote, (v) !->
+							Server.sync 'vote', v, !->
+								Db.personal.set 'vote', v
+
+		else
+			Ui.bigButton !->
+				Dom.text "Vote now!"
+			, !->
+				selectMemberModal personalVote, (v) !->
+					Server.sync 'vote', v, !->
+						Db.personal.set 'vote', v
+
 	Dom.div !->
 		Dom.cls "timeremaining"
-		Dom.text tr("Votes are closing ")
-		Time.deltaText (Db.shared.get 'voteclose')
+		Time.deltaText (Db.shared.get 'voteclose'),[
+			10*24*60*60, 7*24*60*60, "%1 week|s remaining"
+			40*60*60, 24*60*60, "%1 day|s remaining"
+			60*60, 60*60, "%1 hour|s remaining"
+			40, 60, "%1 minute|s remaining"
+			10, 9999, "almost no time"
+		]
 
-resultsPage = !->
-	if Db.shared.get 'winners', (Db.shared.get 'roundcounter')
-		Dom.h1 tr("The results are in!")
+resultsPage = (state) !->
+	log "Results Page!"
+	diff = (Db.shared.get 'roundcounter') - state.get()
+	if diff > 1
+		timetext = diff + ' ' + (periodname undefined, true) + ' ago'
+	else
+		timetext = if (Db.shared.get 'settings', 'period') == 'day' then 'yesterday' else 'last ' + periodname()
+
+	winner = Db.shared.get 'winners', state.get()
+	if winner
 		Dom.div !->
 			Dom.cls 'titleHeader'
-			Dom.text Plugin.userName Db.shared.get 'winners', (Db.shared.get 'roundcounter')
+			Dom.text Plugin.userName winner
 		Dom.div !->
 			Dom.cls 'titleSubheader'
 			Dom.text Db.shared.get 'settings', 'title'
-			Dom.text tr(" of the ") + periodname()
+			Dom.text tr(" of ") + timetext
 
-		winnerPicture()
+		winnerPicture state
 		Dom.div !->
 			Dom.style
 				textAlign: 'center'
 			Dom.text Db.shared.get 'settings', 'description'
-
-		winningstreak = 0
-		for m, w of Db.shared.get 'winners'
-			if parseInt(w) == Plugin.userId()
-				winningstreak++
-			else
-				winningstreak = 0
-
-		if winningstreak > 1
-			Dom.div !->
-				Dom.style
-					textAlign: 'center'
-					marginTop: '10px'
-				Dom.text tr("#{winningstreak} wins in a row!")
 	else
 		Dom.h1 tr("Unfortunately...")
-		Dom.text tr("No votes have been cast during the last round.")
-	
-	Dom.div !->
-		Dom.cls 'timeremaining'
-		Dom.text tr("The next round will begin ")
-		Time.deltaText (Db.shared.get 'nextround')
+		Dom.text tr("No votes have been cast ") + timetext + '.'
 
-selectMember = (opts) !->
-	opts ||= {}
-	[handleChange, initValue] = Form.makeInput opts, (v) -> 0|v
-
-	value = Obs.create(initValue)
-	Form.box !->
-		Dom.style fontSize: '125%', paddingRight: '56px'
-		Dom.text opts.title||tr("Selected member")
-		v = value.get()
+selectMemberModal = (value, handleChange) !->
+	Modal.show tr("Vote for"), !->
+		Dom.style width: '80%'
 		Dom.div !->
-			Dom.style color: (if v then 'inherit' else '#aaa')
-			Dom.text (if v then Plugin.userName(v) else tr("Nobody"))
-		if v
-			Ui.avatar Plugin.userAvatar(v), !->
-				Dom.style position: 'absolute', right: '6px', top: '50%', marginTop: '-20px'
+			Dom.style
+				maxHeight: '40%'
+				overflow: 'auto'
+				_overflowScrolling: 'touch'
+				backgroundColor: '#eee'
+				margin: '-12px'
 
-		Dom.onTap !->
-			Modal.show opts.selectTitle||tr("Select member"), !->
-				Dom.style width: '80%'
-				Dom.div !->
+			Plugin.users.iterate (user) !->
+				Ui.item !->
+					Ui.avatar user.get('avatar')
+					Dom.text user.get('name')
+
+					if +user.key() is +value.get()
+						Dom.style fontWeight: 'bold'
+
+						Dom.div !->
+							Dom.style
+								Flex: 1
+								padding: '0 10px'
+								textAlign: 'right'
+								fontSize: '150%'
+								color: Plugin.colors().highlight
+							Dom.text "✓"
+
+					Dom.onTap !->
+						handleChange user.key()
+						value.set user.key()
+						Modal.remove()
+	, (choice) !->
+		if choice is 'clear'
+			handleChange ''
+			value.set ''
+	, ['cancel', tr("Cancel"), 'clear', tr("Clear")]
+
+hallOfFame = (state) !->
+	if Db.shared.get 'winners'
+		Dom.h2 !->
+			Dom.text tr("Previous winners")
+
+		if Db.shared.get 'votesopen'
+			Ui.bigImg Plugin.resourceUri('unknown.jpg'), !->
+				Dom.cls 'winneravatar'
+				if state.get() == Db.shared.get 'roundcounter'
 					Dom.style
-						maxHeight: '40%'
-						overflow: 'auto'
-						_overflowScrolling: 'touch'
-						backgroundColor: '#eee'
-						margin: '-12px'
+						border: "3px #{Plugin.colors().highlight} solid"
+						width: '34px'
+						height: '34px'
+						borderRadius: '19px'
+				else
+					Dom.style
+						border: '0.8px rgb(170,170,170) solid'
+						width: '38px'
+						height: '38px'
+						borderRadius: '19px'
+				r = Db.shared.get 'roundcounter'
+				if r != parseInt(state.get())
+					Dom.onTap !->
+						log "Changing page to current (" + r + ")!"
+						state.set r
+						Page.scroll 0
 
-					Plugin.users.iterate (user) !->
-						Ui.item !->
-							Ui.avatar user.get('avatar')
-							Dom.text user.get('name')
+		Db.shared.iterate 'winners', (winner) !->
+			w = winner.get()
+			r = parseInt(winner.key())
+			log "Winner:", r
+			Ui.avatar Plugin.userAvatar(w), !->
+				Dom.cls 'winneravatar'
+				if r == state.get()
+					Dom.style
+						border: "3px #{Plugin.colors().highlight} solid"
+				if r != state.get()
+					Dom.onTap !->
+						state.set r
+						Page.scroll 0
 
-							if +user.key() is +value.get()
-								Dom.style fontWeight: 'bold'
+		, (item) ->
+			if +item.key()
+				return -item.key()
 
-								Dom.div !->
-									Dom.style
-										Flex: 1
-										padding: '0 10px'
-										textAlign: 'right'
-										fontSize: '150%'
-										color: Plugin.colors().highlight
-									Dom.text "✓"
+		# Ui.item !->
+		# 	Dom.text tr("Hall of Fame")
+		# 	Dom.onTap !->
+		# 		Modal.show 'Hall of Fame', hallOfFameModal
 
-							Dom.onTap !->
-								handleChange user.key()
-								value.set user.key()
-								Modal.remove()
-			, (choice) !->
-				if choice is 'clear'
-					handleChange ''
-					value.set ''
-			, ['cancel', tr("Cancel"), 'clear', tr("Clear")]
-
-hallOfFame = !->
+hallOfFameModal = !->
 	Dom.div !->
 		Dom.style
 			margin: '10px 0px'
@@ -229,17 +278,17 @@ hallOfFame = !->
 exports.renderSettings = !->
 	# Once the rounds have been started, do not allow changing
 	if Db.shared
-		# if Plugin.userIsAdmin()
-		# 	Dom.h3 !->
-		# 		Dom.text tr("Admin Options")
-		# 	Ui.item !->
-		# 		Dom.text "Start new round now!"
-		# 		Dom.onTap !->
-		# 			Server.sync 'startRound'
-		# 	Ui.item !->
-		# 		Dom.text "End round now!"
-		# 		Dom.onTap !->
-		# 			Server.sync 'endRound'
+		if Plugin.userIsAdmin()
+			Dom.h3 !->
+				Dom.text tr("Admin Options")
+			Ui.item !->
+				Dom.text "Start new round now!"
+				Dom.onTap !->
+					Server.sync 'startRound'
+			Ui.item !->
+				Dom.text "End round now!"
+				Dom.onTap !->
+					Server.sync 'endRound'
 		return if Db.shared.get 'nextround'
 
 	period = Obs.create(if Db.shared then Db.shared.get 'settings', 'period' else 'week')
@@ -344,9 +393,9 @@ exports.renderSettings = !->
 						Dom.div !->
 							Dom.style
 								position: 'absolute'
-								left: '0px'
-								top: '5px'
-								fontSize: '15px'
+								left: '21px'
+								top: '15px'
+								fontSize: '35px'
 								color: 'black'
 							Dom.text '✔'
 					else if cte.value() == '' and cde.value() == ''
@@ -415,12 +464,13 @@ photoOrTemplateUrl = (url) !->
 		picture = Plugin.resourceUri('unknown.jpg')
 	return picture
 
-winnerPicture = !->
+winnerPicture = (state) !->
 	Dom.div !->
 		Dom.style
 			margin: '15px auto'
 			width: '250px'
-		if Db.shared.get 'votesopen'
+		log "STATE:", state
+		if (!state? || (state.get() == (Db.shared.get 'roundcounter'))) && Db.shared.get 'votesopen'
 			Dom.div !->
 				Dom.cls "winnerpicture"
 				picture = photoOrTemplateUrl()
@@ -432,7 +482,7 @@ winnerPicture = !->
 					backgroundRepeat: 'no-repeat'
 					borderRadius: '125px'
 		else
-			first = Db.shared.get 'winners', (Db.shared.get 'roundcounter')
+			first = Db.shared.get 'winners', state.get()
 			Ui.avatar Plugin.userAvatar(first), undefined, 250
 
 templates = [
