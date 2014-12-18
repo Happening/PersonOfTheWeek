@@ -1,4 +1,5 @@
 name: Award
 description: Who deserves the award this week?
+store: 700
 icon: award4
 api: 2

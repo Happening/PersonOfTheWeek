@@ -366,111 +366,105 @@ exports.renderSettings = !->
 
 		Form.label tr("Select award")
 		s = selected.get()
-		for opts in templates
-			Obs.observe !->
-				Ui.item !->
-					Dom.cls 'templateitem'
+		for opts in templates then do (opts) !->
+			Ui.item !->
+				Dom.cls 'templateitem'
 
-					Dom.div !->
-						Dom.cls 'templatepicture'
-						Dom.style
-							background: "url(#{Plugin.resourceUri(opts.photo)}) 50% 50% no-repeat"
-							backgroundSize: '50px'
-						if selected.get() == opts.id
+				Dom.div !->
+					Dom.cls 'templatepicture'
+					Dom.style
+						background: "url(#{Plugin.resourceUri(opts.photo)}) 50% 50% no-repeat"
+						backgroundSize: '50px'
+					if selected.get() == opts.id
+						Dom.div !->
+							Dom.style
+								backgroundColor: 'rgba(220,220,220,0.7)'
+								marginTop: '-5px'
+								width: '50px'
+								height: '50px'
+								borderRadius: '25px'
 							Dom.div !->
 								Dom.style
-									backgroundColor: 'rgba(220,220,220,0.7)'
-									marginTop: '-5px'
+									position: 'relative'
 									width: '50px'
-									height: '50px'
-									borderRadius: '25px'
-								Dom.div !->
-									Dom.style
-										position: 'relative'
-										width: '50px'
-										textAlign: 'center'
-										marginTop: '5px'
-										fontSize: '35px'
-										color: 'black'
-									Dom.text '✔'
-					Dom.div !->
-						Dom.cls 'templatedescription'
-						Dom.text opts.display
-						Dom.tr opts.description
+									textAlign: 'center'
+									marginTop: '5px'
+									fontSize: '35px'
+									color: 'black'
+								Dom.text '✔'
+				Dom.div !->
+					Dom.cls 'templatedescription'
+					Dom.text opts.display
+					Dom.tr opts.description
 
-
-					t = opts.title
-					d = opts.description
-					p = opts.photo
-					i = opts.id
-					Dom.onTap !->
-						settings.set('title', t)
-						settings.set('description', d)
-						settings.set('photo', p)
-						selected.set(i)
+				Dom.onTap !->
+					settings.set('title', opts.title)
+					settings.set('description', opts.description)
+					settings.set('photo', opts.photo)
+					selected.set(opts.id)
 
 		Ui.item !->
-			Obs.observe !->
-				Dom.style
-					position: 'relative'
-					minHeight: if customCollapsed.get() then '60px' else '120px'
-					marginBottom: '25px'
-				
-				if customCollapsed.get()
-					Dom.span !->
-						Dom.style color: Plugin.colors().highlight
-						Dom.text "+ Create your own"
-				else
-					cte = cde = undefined
-					photo = Photo.unclaimed 'titlephoto'
-					if photo
-						photoguid = photo.claim()
-						if Photo.url photoguid
-							settings.set 'photoguid', photoguid
-							settings.set 'thumb', photo.thumb
+			Dom.style
+				position: 'relative'
+				minHeight: if customCollapsed.get() then '60px' else '120px'
+				marginBottom: '25px'
 
+			if customCollapsed.get()
+				Dom.span !->
+					Dom.style color: Plugin.colors().highlight
+					Dom.text "+ Create your own"
+			else
+				cte = cde = undefined
+				photo = Photo.unclaimed 'titlephoto'
+				if photo
+					photoguid = photo.claim()
+					if Photo.url photoguid
+						settings.set 'photoguid', photoguid
+						settings.set 'thumb', photo.thumb
+
+				Dom.div !->
+					Dom.cls 'addpicture'
+					if settings.get 'thumb'
+						photourl = settings.get 'thumb'
+						backgroundsize = 'cover'
+					else
+						photourl = Plugin.resourceUri 'addphoto.png'
+						backgroundsize = '20px'
+					Dom.style
+						background:  "url(#{photourl}) 50% 50% no-repeat"
+						backgroundSize: backgroundsize
+					Dom.onTap !->
+						Photo.pick undefined, false, 'titlephoto'
+
+				Dom.div !->
 					Dom.div !->
-						Dom.cls 'addpicture'
-						if settings.get 'thumb'
-							photourl = settings.get 'thumb'
-							backgroundsize = 'cover'
-						else
-							photourl = Plugin.resourceUri 'addphoto.png'
-							backgroundsize = '20px'
 						Dom.style
-							background:  "url(#{photourl}) 50% 50% no-repeat"
-							backgroundSize: backgroundsize
-						Dom.onTap !->
-							Photo.pick undefined, false, 'titlephoto'
-
+							width: '100%'
+						cte = Form.input
+							name: 'customtitle'
+							text: 'Title'
+					Form.condition ->
+						tr("Required field") if cte.value() == '' && selected.get() == 'custom'
 					Dom.div !->
-						Dom.div !->
-							Dom.style
-								width: '100%'
-							cte = Form.input
-								name: 'customtitle'
-								text: 'Title'
-						Form.condition ->
-							tr("Required field") if cte.value() == '' && selected.get() == 'custom'
-						Dom.div !->
-							cde = Form.text
-								name: 'customdescription'
-								text: 'Description'
-								autogrow: false
-						Form.condition ->
-							tr("Required field") if cde.value() == '' && selected.get() == 'custom'
+						cde = Form.text
+							name: 'customdescription'
+							text: 'Description'
+							autogrow: false
+					Form.condition ->
+						tr("Required field") if cde.value() == '' && selected.get() == 'custom'
 
-					if selected.get() == 'custom'
-						Dom.div !->
-							Dom.style
-								position: 'absolute'
-								left: '21px'
-								top: '15px'
-								fontSize: '35px'
-								color: 'black'
-							Dom.text '✔'
-					else if cte.value() == '' and cde.value() == ''
-							customCollapsed.set true
+				if selected.get() == 'custom'
+					Dom.div !->
+						Dom.style
+							position: 'absolute'
+							left: '21px'
+							top: '15px'
+							fontSize: '35px'
+							color: 'black'
+						Dom.text '✔'
+				else if cte.value() == '' and cde.value() == ''
+						customCollapsed.set true
+
 			Dom.onTap !->
 				customCollapsed.set false
 				selected.set 'custom'
