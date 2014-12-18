@@ -69,34 +69,22 @@ exports.close = !->
 			winner = uid
 
 	if winner > 0
-		Db.personal(winner).set('wins', (0|Db.personal(uid).get('wins')) + 1)
 		Db.shared.set 'winners', roundnumber, winner
-
-		# winningstreak = 0
-		# lw = -1
-		# for m, w of Db.shared.get 'winners'
-		# 	if parseInt(w) == lw
-		# 		winningstreak++
-		# 	else
-		# 		winningstreak = 0
-		# 	lw = parseInt(w)
-		# log "Found streak:", winningstreak
-		# Db.shared.set 'streak', winningstreak
 
 	Db.shared.set 'votesopen', false
 
 	name = settings.title + tr(' of the ') + periodname (Db.shared.get 'settings', 'period')
 	Event.create
 		unit: 'vote'
-		text: tr('The winner for ')+name+tr(' is in! Do you think you might have won?')
+		text: tr('The winner for ')+name+tr(' is in!')
 		new: ['all']
 
 	# Add a comment as a divider between old and new comments
-	if Db.shared.get 'comments', Db.shared.get roundnumber
-		lastcomment = Db.shared.get 'comments', roundnumber, (Db.shared.get 'comments', 'votecomments', 'max'), 'u'
+	if Db.shared.get 'comments', roundnumber
+		lastcomment = Db.shared.get 'comments', roundnumber, (Db.shared.get 'comments', roundnumber, 'max'), 'u'
 		if lastcomment != 0
 			winnername = if winner > 0 then (Plugin.userName winner) else tr('Nobody')
-			addComment winnername + tr(' won the award this ') + periodname(Db.shared.get 'settings', 'period') + '.'
+			addComment winnername + tr(' won the award!')
 
 exports.client_vote = (v) !->
 	if (Db.shared.get 'votesopen') && (Db.shared.get 'voteclose') - Plugin.time() > 0
@@ -113,12 +101,12 @@ exports.start = !->
 	Timer.set Math.round(voteperiod*1000*0.7), 'votereminder'
 	Timer.set totalperiod*1000, 'start'
 
-	if voteperiod > 86400
+	if voteperiod >= 86400
 		newvoteclose = Math.floor(Plugin.time()/86400) * 86400 + voteperiod
 		nextround = Math.floor(Plugin.time()/86400) * 86400 + totalperiod
 	else
-		newvoteclose = Plugin.time() + voteperiod
-		nextround = Plugin.time() + totalperiod
+		newvoteclose = Math.floor(Plugin.time() + voteperiod)
+		nextround = Math.floor(Plugin.time() + totalperiod)
 
 	Db.shared.set 'nextround', nextround
 	Db.shared.set 'voteclose', newvoteclose

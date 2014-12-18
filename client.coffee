@@ -57,14 +57,13 @@ Dom.css
 		minWidth: '50px'
 	'.winneravatar':
 		display: 'inline-block'
-		margin: '5px'
+		margin: '5px 2px'
 	'.winneravatar .selected'
 		border: '3px #{Plugin.colors().highlight} solid'
 
 exports.render = !->
 	state = Obs.create(Db.shared.get 'roundcounter')
 	Obs.observe !->
-		log "Page?", state.get(), Db.shared.get 'roundcounter'
 		if state.get() == (Db.shared.get 'roundcounter') && (Db.shared.get 'votesopen') && (Db.shared.get 'voteclose') - Plugin.time() > 0
 			pendingPage()
 		else
@@ -77,48 +76,63 @@ exports.render = !->
 			commentsclosed = state.get() != Db.shared.get 'roundcounter'
 			require('social').renderComments comments,
 				closed: commentsclosed
+				render: (comment) !->
+					if comment.s
+						Dom.div !->
+							Dom.style margin: '6px 0 6px 56px', fontSize: '70%'
+
+							Dom.span !->
+								Dom.style color: '#999'
+								Time.deltaText comment.t
+								Dom.text " • "
+
+							Dom.text comment.c
+						return true # We're rendering these type of comments
 	
 		hallOfFame state
 
 pendingPage = (state) !->
-	log "Pending Page!"
 	Dom.div !->
 		Dom.cls 'titleHeader'
 		Dom.text Db.shared.get 'settings', 'title'
 		Dom.text tr(" of the ") + periodname()
 	Dom.div !->
-		Dom.text Db.shared.get 'settings', 'description'
 		Dom.style
-			textAlign: 'center'
-	winnerPicture state
+			maxWidth: '300px'
+			margin: '0px auto'
+		Dom.div !->
+			Dom.text Db.shared.get 'settings', 'description'
+			Dom.style
+				textAlign: 'center'
+		winnerPicture state
 
-	personalVote = Obs.create(0|Db.personal.get 'vote')
-	Obs.observe !->
-		if personalVote.get()
-			Dom.div !->
-				Dom.cls 'memberselect'
-				Form.box !->
-					Dom.style fontSize: '125%', paddingRight: '56px'
-					Dom.text tr("Voted for")
-					v = personalVote.get()
-					Dom.div !->
-						Dom.style color: (if v then 'inherit' else '#aaa')
-						Dom.text (if v then Plugin.userName(v) else tr("Nobody"))
-					if personalVote.get()
-						Ui.avatar Plugin.userAvatar(v), !->
-							Dom.style position: 'absolute', right: '6px', top: '50%', marginTop: '-20px'
-					Dom.onTap !->
-						selectMemberModal personalVote, (v) !->
-							Server.sync 'vote', v, !->
-								Db.personal.set 'vote', v
+		personalVote = Obs.create(0|Db.personal.get 'vote')
+		Obs.observe !->
+			if personalVote.get()
+				Dom.div !->
+					Dom.cls 'memberselect'
+					Form.box !->
+						Dom.style fontSize: '125%', paddingRight: '56px'
+						Dom.text tr("Voted for")
+						v = personalVote.get()
+						Dom.div !->
+							Dom.style color: (if v then 'inherit' else '#aaa')
+							Dom.text (if v then Plugin.userName(v) else tr("Nobody"))
+						if personalVote.get()
+							Ui.avatar Plugin.userAvatar(v), !->
+								Dom.style position: 'absolute', right: '6px', top: '50%', marginTop: '-20px'
+						Dom.onTap !->
+							selectMemberModal personalVote, (v) !->
+								Server.sync 'vote', v, !->
+									Db.personal.set 'vote', v
 
-		else
-			Ui.bigButton !->
-				Dom.text "Vote now!"
-			, !->
-				selectMemberModal personalVote, (v) !->
-					Server.sync 'vote', v, !->
-						Db.personal.set 'vote', v
+			else
+				Ui.bigButton !->
+					Dom.text "Vote now!"
+				, !->
+					selectMemberModal personalVote, (v) !->
+						Server.sync 'vote', v, !->
+							Db.personal.set 'vote', v
 
 	Dom.div !->
 		Dom.cls "timeremaining"
@@ -131,8 +145,9 @@ pendingPage = (state) !->
 		]
 
 resultsPage = (state) !->
-	log "Results Page!"
 	diff = (Db.shared.get 'roundcounter') - state.get()
+	if not (Db.shared.get 'votesopen')
+		diff += 1
 	if diff > 1
 		timetext = diff + ' ' + (periodname undefined, true) + ' ago'
 	else
@@ -148,14 +163,28 @@ resultsPage = (state) !->
 			Dom.text Db.shared.get 'settings', 'title'
 			Dom.text tr(" of ") + timetext
 
-		winnerPicture state
 		Dom.div !->
 			Dom.style
-				textAlign: 'center'
-			Dom.text Db.shared.get 'settings', 'description'
+				maxWidth: '300px'
+				margin: '0px auto'
+			winnerPicture state
+			Dom.div !->
+				Dom.style
+					textAlign: 'center'
+				Dom.text Db.shared.get 'settings', 'description'
 	else
-		Dom.h1 tr("Unfortunately...")
-		Dom.text tr("No votes have been cast ") + timetext + '.'
+		Dom.div !->
+			Dom.cls 'titleHeader'
+			Dom.text tr("Unfortunately")
+		Dom.div !->
+			Dom.cls 'titleSubheader'
+			Dom.text tr("No votes have been cast ") + timetext + '.'
+
+		Dom.div !->
+			Dom.style
+				maxWidth: '300px'
+				margin: '0px auto'
+			winnerPicture null
 
 selectMemberModal = (value, handleChange) !->
 	Modal.show tr("Vote for"), !->
@@ -193,7 +222,7 @@ selectMemberModal = (value, handleChange) !->
 		if choice is 'clear'
 			handleChange ''
 			value.set ''
-	, ['cancel', tr("Cancel"), 'clear', tr("Clear")]
+	, if value.get() then ['cancel', tr("Cancel"), 'clear', tr("Clear")] else ['cancel', tr("Cancel")]
 
 hallOfFame = (state) !->
 	if Db.shared.get 'winners'
@@ -218,14 +247,12 @@ hallOfFame = (state) !->
 				r = Db.shared.get 'roundcounter'
 				if r != parseInt(state.get())
 					Dom.onTap !->
-						log "Changing page to current (" + r + ")!"
 						state.set r
 						Page.scroll 0
 
 		Db.shared.iterate 'winners', (winner) !->
 			w = winner.get()
 			r = parseInt(winner.key())
-			log "Winner:", r
 			Ui.avatar Plugin.userAvatar(w), !->
 				Dom.cls 'winneravatar'
 				if r == state.get()
@@ -278,18 +305,19 @@ hallOfFameModal = !->
 exports.renderSettings = !->
 	# Once the rounds have been started, do not allow changing
 	if Db.shared
-		if Plugin.userIsAdmin()
-			Dom.h3 !->
-				Dom.text tr("Admin Options")
-			Ui.item !->
-				Dom.text "Start new round now!"
-				Dom.onTap !->
-					Server.sync 'startRound'
-			Ui.item !->
-				Dom.text "End round now!"
-				Dom.onTap !->
-					Server.sync 'endRound'
-		return if Db.shared.get 'nextround'
+		# if Plugin.userIsAdmin()
+		# 	Dom.h3 !->
+		# 		Dom.text tr("Admin Options")
+		# 	Ui.item !->
+		# 		Dom.text "Start new round now!"
+		# 		Dom.onTap !->
+		# 			Server.sync 'startRound'
+		# 	Ui.item !->
+		# 		Dom.text "End round now!"
+		# 		Dom.onTap !->
+		# 			Server.sync 'endRound'
+		if Db.shared.get 'nextround'
+			return Dom.text tr("Interested in a different award? You can add another Award plugin!")
 
 	period = Obs.create(if Db.shared then Db.shared.get 'settings', 'period' else 'week')
 	customCollapsed = Obs.create(true)
@@ -297,6 +325,46 @@ exports.renderSettings = !->
 	settings = Obs.create()
 
 	Obs.observe !->
+		p = Form.hidden 'period', period.get()
+		p.value period.get()
+		Form.box !->
+			Dom.style
+				fontSize: '125%'
+				paddingRight: '56px'
+				borderTop: '1px solid #ddd'
+				borderBottom: '1px solid #ddd'
+			Dom.text "Vote every"
+			Dom.div periodname period.get()
+			Dom.onTap !->
+				Modal.show tr('Vote every'), !->
+					periods = [
+						['day', tr("Day")]
+						['week', tr("Week")]
+						['month', tr("Month")]
+					]
+					Dom.div !->
+						Dom.style margin: '-12px'
+						for p in periods
+							Ui.item !->
+								if p[0] == period.get()
+									Dom.style fontWeight: 'bold'
+									Dom.div !->
+										Dom.style
+											position: 'absolute'
+											width: '50px'
+											right: '-10px'
+											marginTop: '1px'
+											fontSize: '150%'
+											color: Plugin.colors().highlight
+										Dom.text '✔'
+								Dom.text p[1]
+								vp = p[0]
+								Dom.onTap !->
+									period.set vp
+									Modal.remove()
+				, undefined, ['cancel', tr("Cancel")]
+
+		Form.label tr("Select award")
 		s = selected.get()
 		for opts in templates
 			Obs.observe !->
@@ -346,9 +414,12 @@ exports.renderSettings = !->
 				Dom.style
 					position: 'relative'
 					minHeight: if customCollapsed.get() then '60px' else '120px'
+					marginBottom: '25px'
 				
 				if customCollapsed.get()
-					Dom.text "+ Create your own"
+					Dom.span !->
+						Dom.style color: Plugin.colors().highlight
+						Dom.text "+ Create your own"
 				else
 					cte = cde = undefined
 					photo = Photo.unclaimed 'titlephoto'
@@ -378,13 +449,13 @@ exports.renderSettings = !->
 								width: '100%'
 							cte = Form.input
 								name: 'customtitle'
-								text: 'title'
+								text: 'Title'
 						Form.condition ->
 							tr("Required field") if cte.value() == '' && selected.get() == 'custom'
 						Dom.div !->
 							cde = Form.text
 								name: 'customdescription'
-								text: 'description'
+								text: 'Description'
 								autogrow: false
 						Form.condition ->
 							tr("Required field") if cde.value() == '' && selected.get() == 'custom'
@@ -403,29 +474,6 @@ exports.renderSettings = !->
 			Dom.onTap !->
 				customCollapsed.set false
 				selected.set 'custom'
-
-		Form.label tr("Vote once every")
-		p = Form.hidden 'period', period.get()
-		p.value period.get()
-		Ui.item !->
-			Dom.text periodname period.get()
-			Dom.onTap !->
-				Modal.show !->
-					Ui.item !->
-						Dom.text tr("day")
-						Dom.onTap !->
-							period.set 'day'
-							Modal.remove()
-					Ui.item !->
-						Dom.text tr("week")
-						Dom.onTap !->
-							period.set 'week'
-							Modal.remove()
-					Ui.item !->
-						Dom.text tr("month")
-						Dom.onTap !->
-							period.set 'month'
-							Modal.remove()
 
 		Obs.observe !->
 			th = Form.hidden 'title'
@@ -469,8 +517,7 @@ winnerPicture = (state) !->
 		Dom.style
 			margin: '15px auto'
 			width: '250px'
-		log "STATE:", state
-		if (!state? || (state.get() == (Db.shared.get 'roundcounter'))) && Db.shared.get 'votesopen'
+		if !state? || ((state.get() == (Db.shared.get 'roundcounter')) && Db.shared.get 'votesopen')
 			Dom.div !->
 				Dom.cls "winnerpicture"
 				picture = photoOrTemplateUrl()
@@ -481,16 +528,25 @@ winnerPicture = (state) !->
 					height: '250px'
 					backgroundRepeat: 'no-repeat'
 					borderRadius: '125px'
+					boxShadow: '2px 2px 8px #aaa'
+					border: '1px solid #aaa'
 		else
 			first = Db.shared.get 'winners', state.get()
-			Ui.avatar Plugin.userAvatar(first), undefined, 250
+			Ui.avatar Plugin.userAvatar(first), !->
+				Dom.style
+					height: '250px'
+					width: '250px'
+					borderRadius: '250px'
+					border: '1px solid #aaa'
+					boxShadow: '2px 2px 8px #aaa'
+				, 250
 
 templates = [
 	{title: tr('Panda'), display: tr('The Panda'), description: tr('Too lazy to reproduce, and thus doomed to extinction.'), photo: 'panda.jpg', id: 1},
 	{title: tr('Grizzly'), display: tr('The Grizzly'), description: tr('A bear with a terrible temper. Approach at your own risk.'), photo: 'grizzly.jpg', id: 2}
 	{title: tr('Peacock'), display: tr('The Peacock'), description: tr('A vain bird that loves to show everyone just how awesome it is.'), photo: 'peacock.jpg', id: 3}
 	{title: tr('Puppy'), display: tr('The Puppy'), description: tr('Young, playful, foolish. But at the end of the day, just very cute.'), photo: 'pup.jpg', id: 4}
-	{title: tr('Slug'), display: tr('The Slug'), description: tr('Not everyone can think and work that fast.'), photo:'slug.jpg', id: 5}
+	{title: tr('Snail'), display: tr('The Snail'), description: tr('Not everyone can think and work that fast.'), photo:'snail.jpg', id: 5}
 	# http://www.publicdomainpictures.net/view-image.php?image=104751&picture=banana-slug
 	{title: tr('Donkey'), display: tr('The Donkey'), description: tr('Extremely stupid, but too stubborn to admit it.'), photo:'donkey.jpg', id: 6}
 	# http://www.publicdomainpictures.net/view-image.php?image=45660&picture=donkey-in-the-meadow&large=1
