@@ -87,7 +87,7 @@ exports.close = !->
 			addComment winnername + tr(' won the award!')
 
 exports.client_vote = (v) !->
-	if (Db.shared.get 'votesopen') && (Db.shared.get 'voteclose') - Plugin.time() > 0
+	if (Db.shared.get 'votesopen')
 		uid = Plugin.userId()
 		Db.personal(uid).set('vote', v)
 

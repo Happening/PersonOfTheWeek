@@ -64,7 +64,7 @@ Dom.css
 exports.render = !->
 	state = Obs.create(Db.shared.get 'roundcounter')
 	Obs.observe !->
-		if state.get() == (Db.shared.get 'roundcounter') && (Db.shared.get 'votesopen') && (Db.shared.get 'voteclose') - Plugin.time() > 0
+		if state.get() == (Db.shared.get 'roundcounter') && (Db.shared.get 'votesopen')
 			pendingPage()
 		else
 			resultsPage state
