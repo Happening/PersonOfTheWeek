@@ -40,7 +40,7 @@ Dom.css
 	'.templateitem':
 		position: 'relative'
 		height: '60px'
-	'.templatedescription tr':
+	'.templatedescription div':
 		fontStyle: 'italic'
 		fontSize: '80%'
 		fontWeight: 'normal'
@@ -393,9 +393,10 @@ exports.renderSettings = !->
 									color: 'black'
 								Dom.text '✔'
 				Dom.div !->
+					Dom.style Flex: 1
 					Dom.cls 'templatedescription'
 					Dom.text opts.display
-					Dom.tr opts.description
+					Dom.div opts.description
 
 				Dom.onTap !->
 					settings.set('title', opts.title)
@@ -437,9 +438,8 @@ exports.renderSettings = !->
 						Photo.pick undefined, false, 'titlephoto'
 
 				Dom.div !->
+					Dom.style Flex: 1
 					Dom.div !->
-						Dom.style
-							width: '100%'
 						cte = Form.input
 							name: 'customtitle'
 							text: 'Title'
@@ -533,7 +533,7 @@ winnerPicture = (state) !->
 					borderRadius: '250px'
 					border: '1px solid #aaa'
 					boxShadow: '2px 2px 8px #aaa'
-				, 250
+			, 250
 
 templates = [
 	{title: tr('Panda'), display: tr('The Panda'), description: tr('Too lazy to reproduce, and thus doomed to extinction.'), photo: 'panda.jpg', id: 1},
