@@ -38,6 +38,12 @@ exports.onConfig = onConfig = (config) !->
 	if not Db.shared.get 'nextround'
 		exports.start()
 
+exports.onUpgrade = !->
+	# start plugins that are now hanging in limbo due to the start being commented.
+	nextround = Db.shared.get 'nextround'
+	if nextround < Plugin.time()
+		exports.start()
+
 exports.getTitle = ->
 	settings = Db.shared.get 'settings'
 	name = settings.title + tr(' of the ') + periodname (settings.period)
@@ -109,9 +115,9 @@ exports.start = !->
 	Db.shared.set 'votesopen', true
 	Db.shared.set 'roundcounter', (0|Db.shared.get 'roundcounter') + 1
 
-	newclosetime = newvoteclose - Plugin.time()
-	newremindtime = Math.round((newvoteclose - Plugin.time()) * 0.7)
-	newstarttime = nextround - Plugin.time()
+	newclosetime = (newvoteclose - Plugin.time()) * 1000
+	newremindtime = (Math.round((newvoteclose - Plugin.time()) * 0.7)) * 1000
+	newstarttime = (nextround - Plugin.time()) * 1000
 
 	if (newclosetime < 120 || newremindtime < 120 || newstarttime < 120)
 		log "INVALID PLUGIN STATE: Awards plugin attempted to set a timer for less than 2 minutes, possible even negative."
@@ -121,6 +127,8 @@ exports.start = !->
 		log "Newstarttime:", newstarttime
 		log "Will NOT start a new round."
 		return
+
+	log "Starting a new round. Plugintime, newremindtime, newstarttime:", Plugin.time(), newremindtime, newstarttime
 
 	Timer.set newclosetime, 'close'
 	Timer.set newremindtime, 'votereminder'
