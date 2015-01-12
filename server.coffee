@@ -97,10 +97,6 @@ exports.start = !->
 	totalperiod = Db.shared.get 'settings', 'totalperiod'
 
 	Timer.cancel()
-	Timer.set voteperiod*1000, 'close'
-	Timer.set Math.round(voteperiod*1000*0.7), 'votereminder'
-	Timer.set totalperiod*1000, 'start'
-
 	if voteperiod >= 86400
 		newvoteclose = Math.floor(Plugin.time()/86400) * 86400 + voteperiod
 		nextround = Math.floor(Plugin.time()/86400) * 86400 + totalperiod
@@ -112,6 +108,23 @@ exports.start = !->
 	Db.shared.set 'voteclose', newvoteclose
 	Db.shared.set 'votesopen', true
 	Db.shared.set 'roundcounter', (0|Db.shared.get 'roundcounter') + 1
+
+	newclosetime = newvoteclose - Plugin.time()
+	newremindtime = Math.round((newvoteclose - Plugin.time()) * 0.7)
+	newstarttime = nextround - Plugin.time()
+
+	if (newclosetime < 120 || newremindtime < 120 || newstarttime < 120)
+		log "INVALID PLUGIN STATE: Awards plugin attempted to set a timer for less than 2 minutes, possible even negative."
+		log "Plugin settings: (voteperiod, totalperiod) values ", voteperiod, totalperiod
+		log "Newclosetime:", newclosetime
+		log "Newremindtime:", newremindtime
+		log "Newstarttime:", newstarttime
+		log "Will NOT start a new round."
+		return
+
+	Timer.set newclosetime, 'close'
+	Timer.set newremindtime, 'votereminder'
+	Timer.set newstarttime, 'start'
 
 	name = settings.title + tr(' of the ') + periodname (Db.shared.get 'settings', 'period')
 	Event.create

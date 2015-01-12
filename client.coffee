@@ -319,7 +319,7 @@ exports.renderSettings = !->
 		if Db.shared.get 'nextround'
 			return Dom.text tr("Interested in a different award? You can add another Award plugin!")
 
-	period = Obs.create(if Db.shared then Db.shared.get 'settings', 'period' else 'week')
+	period = Obs.create(if Db.shared then Db.shared.get 'settings', 'period' else 'month')
 	customCollapsed = Obs.create(true)
 	selected = Obs.create(false)
 	settings = Obs.create()
