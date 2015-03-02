@@ -20,23 +20,23 @@ exports.onConfig = onConfig = (config) !->
 			Db.shared.set 'settings', 'description', config.description
 			Db.shared.set 'settings', 'photo', config.photo
 	
-	if config.period
-		if config.period == 'day'
-			voteperiod = 3600 * 4
-			totalperiod = 3600 * 24
-		else if config.period == 'week'
-			voteperiod =  3600 * 24
-			totalperiod = 3600 * 24 * 7
-		else
-			voteperiod = 3600 * 24 * 3
-			totalperiod = 3600 * 24 * 30 # Approximately one month
-		
-		Db.shared.set 'settings', 'period', config.period
-		Db.shared.set 'settings', 'voteperiod', voteperiod
-		Db.shared.set 'settings', 'totalperiod', totalperiod
+		if config.period
+			if config.period == 'day'
+				voteperiod = 3600 * 4
+				totalperiod = 3600 * 24
+			else if config.period == 'week'
+				voteperiod =  3600 * 24
+				totalperiod = 3600 * 24 * 7
+			else
+				voteperiod = 3600 * 24 * 3
+				totalperiod = 3600 * 24 * 30 # Approximately one month
 
-	if not Db.shared.get 'nextround'
-		exports.start()
+			Db.shared.set 'settings', 'period', config.period
+			Db.shared.set 'settings', 'voteperiod', voteperiod
+			Db.shared.set 'settings', 'totalperiod', totalperiod
+
+		if not Db.shared.get 'nextround'
+			exports.start()
 
 exports.onUpgrade = !->
 	# start plugins that are now hanging in limbo due to the start being commented.
@@ -99,8 +99,11 @@ exports.client_vote = (v) !->
 
 exports.start = !->
 	settings = Db.shared.get 'settings'
-	voteperiod = Db.shared.get 'settings', 'voteperiod'
-	totalperiod = Db.shared.get 'settings', 'totalperiod'
+	if !settings?
+		log 'settings is not an object'
+		return
+	voteperiod = settings.voteperiod
+	totalperiod = settings.totalperiod
 
 	Timer.cancel()
 	if voteperiod >= 86400
@@ -134,7 +137,7 @@ exports.start = !->
 	Timer.set newremindtime, 'votereminder'
 	Timer.set newstarttime, 'start'
 
-	name = settings.title + tr(' of the ') + periodname (Db.shared.get 'settings', 'period')
+	name = settings.title + tr(' of the ') + periodname(settings.period)
 	Event.create
 		unit: 'vote'
 		text: tr('The votes for ')+name+tr(' have been opened!')
@@ -142,7 +145,7 @@ exports.start = !->
 
 exports.votereminder = !->
 	settings = Db.shared.get 'settings'
-	name = settings.title + tr(' of the ') + periodname (Db.shared.get 'settings', 'period')
+	name = settings.title + tr(' of the ') + periodname(settings.period)
 
 	include = []
 	for userId in Plugin.userIds() when !Db.personal(userId).get 'vote'

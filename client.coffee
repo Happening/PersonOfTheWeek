@@ -305,17 +305,17 @@ hallOfFameModal = !->
 exports.renderSettings = !->
 	# Once the rounds have been started, do not allow changing
 	if Db.shared
-		# if Plugin.userIsAdmin()
-		# 	Dom.h3 !->
-		# 		Dom.text tr("Admin Options")
-		# 	Ui.item !->
-		# 		Dom.text "Start new round now!"
-		# 		Dom.onTap !->
-		# 			Server.sync 'startRound'
-		# 	Ui.item !->
-		# 		Dom.text "End round now!"
-		# 		Dom.onTap !->
-		# 			Server.sync 'endRound'
+#		if Plugin.userIsAdmin()
+#			Dom.h3 !->
+#				Dom.text tr("Admin Options")
+#			Ui.item !->
+#				Dom.text "Start new round now!"
+#				Dom.onTap !->
+#					Server.sync 'startRound'
+#			Ui.item !->
+#				Dom.text "End round now!"
+#				Dom.onTap !->
+#					Server.sync 'endRound'
 		if Db.shared.get 'nextround'
 			return Dom.text tr("Interested in a different award? You can add another Award plugin!")
 
@@ -419,9 +419,8 @@ exports.renderSettings = !->
 				photo = Photo.unclaimed 'titlephoto'
 				if photo
 					photoguid = photo.claim()
-					if Photo.url photoguid
-						settings.set 'photoguid', photoguid
-						settings.set 'thumb', photo.thumb
+					settings.set 'photoguid', photoguid
+					settings.set 'thumb', photo.thumb
 
 				Dom.div !->
 					Dom.cls 'addpicture'
@@ -435,7 +434,7 @@ exports.renderSettings = !->
 						background:  "url(#{photourl}) 50% 50% no-repeat"
 						backgroundSize: backgroundsize
 					Dom.onTap !->
-						Photo.pick undefined, false, 'titlephoto'
+						Photo.pick null, null, 'titlephoto'
 
 				Dom.div !->
 					Dom.style Flex: 1
@@ -444,14 +443,14 @@ exports.renderSettings = !->
 							name: 'customtitle'
 							text: 'Title'
 					Form.condition ->
-						tr("Required field") if cte.value() == '' && selected.get() == 'custom'
+						tr("A title is required") if cte.value() == '' && selected.get() == 'custom'
 					Dom.div !->
 						cde = Form.text
 							name: 'customdescription'
 							text: 'Description'
 							autogrow: false
 					Form.condition ->
-						tr("Required field") if cde.value() == '' && selected.get() == 'custom'
+						tr("A description is required") if cde.value() == '' && selected.get() == 'custom'
 
 				if selected.get() == 'custom'
 					Dom.div !->
@@ -468,6 +467,9 @@ exports.renderSettings = !->
 			Dom.onTap !->
 				customCollapsed.set false
 				selected.set 'custom'
+
+		Form.condition ->
+			tr("A selection is required") if !selected.get()
 
 		Obs.observe !->
 			th = Form.hidden 'title'
