@@ -81,9 +81,8 @@ exports.close = !->
 
 	name = settings.title + tr(' of the ') + periodname (Db.shared.get 'settings', 'period')
 	Event.create
-		unit: 'vote'
 		text: tr('The winner for ')+name+tr(' is in!')
-		new: ['all']
+		# default path, so they always get cleared
 
 	# Add a comment as a divider between old and new comments
 	if Db.shared.get 'comments', roundnumber
@@ -139,9 +138,8 @@ exports.start = !->
 
 	name = settings.title + tr(' of the ') + periodname(settings.period)
 	Event.create
-		unit: 'vote'
 		text: tr('The votes for ')+name+tr(' have been opened!')
-		include: ['all']
+		# default path, so they always get cleared
 
 exports.votereminder = !->
 	settings = Db.shared.get 'settings'
@@ -152,9 +150,8 @@ exports.votereminder = !->
 		include.push userId
 
 	Event.create
-		unit: 'vote'
 		text: tr('Do not forget to vote for ')+name+'!'
-		include: include
+		# default path, so they always get cleared
 
 periodname = (period) !->
 	if period == 'day'
