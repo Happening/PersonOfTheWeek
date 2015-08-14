@@ -121,7 +121,7 @@ exports.start = !->
 	newremindtime = (Math.round((newvoteclose - Plugin.time()) * 0.7)) * 1000
 	newstarttime = (nextround - Plugin.time()) * 1000
 
-	if (newclosetime < 120 || newremindtime < 120 || newstarttime < 120)
+	if !(newclosetime >= 120000 && newremindtime >= 120000 && newstarttime >= 120000)
 		log "INVALID PLUGIN STATE: Awards plugin attempted to set a timer for less than 2 minutes, possible even negative."
 		log "Plugin settings: (voteperiod, totalperiod) values ", voteperiod, totalperiod
 		log "Newclosetime:", newclosetime

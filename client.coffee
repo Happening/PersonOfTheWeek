@@ -21,6 +21,7 @@ exports.render = !->
 
 	Obs.observe !->
 		roundId = +Page.state.get(0)
+		Page.state.set 'isMain', true
 		Event.showStar tr("this round")
 
 		if roundId is Db.shared.get('roundcounter')
@@ -54,8 +55,10 @@ exports.render = !->
 		return if maxId is 1
 
 		Dom.style
-			backgroundColor: '#333'
-			borderTop: 'solid 1px #666'
+			boxShadow: '0 1px 6px rgba(0, 0, 0, 0.4)'
+			backgroundColor: '#fff'
+			margin: '8px 8px 12px 8px'
+			borderRadius: '2px'
 			whiteSpace: 'nowrap'
 			color: '#aaa'
 
@@ -87,8 +90,10 @@ renderFootItem = (roundId, winner) !->
 		Dom.style
 			display: 'inline-block'
 			position: 'relative'
-			padding: '6px 8px'
-			background: if +Page.state.get(0) == roundId then '#666' else ''
+			padding: '3px'
+			margin: '8px'
+			borderRadius: '25px'
+			background: if +Page.state.get(0) == roundId then '#ccc' else ''
 
 		if winner
 			Ui.avatar Plugin.userAvatar(winner),
@@ -253,10 +258,9 @@ selectMemberModal = (value, handleChange) !->
 		Dom.div !->
 			Dom.style
 				maxHeight: '40%'
-				overflow: 'auto'
-				_overflowScrolling: 'touch'
 				backgroundColor: '#eee'
 				margin: '-12px'
+			Dom.overflow()
 
 			Plugin.users.iterate (user) !->
 				Ui.item !->
