@@ -1,5 +1,5 @@
-name: Award
-description: Who deserves the award this week?
+name: Person of the Week
+description: Weekly awards for the most irritable, vain, lazy, drunk, etc person!
 store: 700
 icon: award4
 api: 2

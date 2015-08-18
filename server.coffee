@@ -1,3 +1,4 @@
+Config = require 'config'
 Db = require 'db'
 Event = require 'event'
 Photo = require 'photo'
@@ -6,50 +7,31 @@ Timer = require 'timer'
 {tr} = require 'i18n'
 
 exports.onInstall = (config) !->
-	if config?
-		onConfig config
+	onConfig(config || require('config').getDefault())
 
 exports.onConfig = onConfig = (config) !->
-	if config?
-		if config.usecustom == "true"
-			Db.shared.set 'settings', 'title', config.customtitle
-			Db.shared.set 'settings', 'description', config.customdescription
-			Photo.claim config.photoguid
-		else
-			Db.shared.set 'settings', 'title', config.title
-			Db.shared.set 'settings', 'description', config.description
-			Db.shared.set 'settings', 'photo', config.photo
-	
-		if config.period
-			if config.period == 'day'
-				voteperiod = 3600 * 4
-				totalperiod = 3600 * 24
-			else if config.period == 'week'
-				voteperiod =  3600 * 24
-				totalperiod = 3600 * 24 * 7
-			else
-				voteperiod = 3600 * 24 * 3
-				totalperiod = 3600 * 24 * 30 # Approximately one month
+	for id,topic of config.topics
+		if !topic.name || !topic.descr
+			delete config.topics[id]
+		else if topic.guid
+			delete config.topics[id]
+			guid = topic.guid
+			delete topic.guid
+			Photo.claim guid, [id,topic]
 
-			Db.shared.set 'settings', 'period', config.period
-			Db.shared.set 'settings', 'voteperiod', voteperiod
-			Db.shared.set 'settings', 'totalperiod', totalperiod
+	if !!Db.shared and (oldPeriod = Db.shared.get('cfg','period'))
+		# changing period is not allowed
+		config.period = oldPeriod
 
-		if not Db.shared.get 'nextround'
-			exports.start()
+	Db.shared.set 'cfg', config
 
-exports.onUpgrade = !->
-	# start plugins that are now hanging in limbo due to the start being commented.
-	nextround = Db.shared.get 'nextround'
-	if nextround < Plugin.time()
-		exports.start()
+exports.onPhoto = (info, [id,topic]) !->
+	topic.photo = info.key
+	Db.shared.set 'cfg', 'topics', id, topic
 
 exports.getTitle = ->
-	settings = Db.shared.get 'settings'
-	name = settings.title + tr(' of the ') + periodname (settings.period)
+	Config.getName(tr("Person"), Db.shared.get('cfg', 'period'))
 
-exports.onPhoto = (info) !->
-	Db.shared.set 'settings', 'photo', info
 
 exports.client_endRound = !->
 	if Plugin.userIsAdmin()
@@ -79,7 +61,7 @@ exports.close = !->
 
 	Db.shared.set 'votesopen', false
 
-	name = settings.title + tr(' of the ') + periodname (Db.shared.get 'settings', 'period')
+	name = settings.name + tr(' of the ') + periodname (Db.shared.get 'settings', 'period')
 	Event.create
 		text: tr('The winner for ')+name+tr(' is in!')
 		# default path, so they always get cleared
@@ -136,14 +118,14 @@ exports.start = !->
 	Timer.set newremindtime, 'votereminder'
 	Timer.set newstarttime, 'start'
 
-	name = settings.title + tr(' of the ') + periodname(settings.period)
+	name = settings.name + tr(' of the ') + periodname(settings.period)
 	Event.create
 		text: tr('The votes for ')+name+tr(' have been opened!')
 		# default path, so they always get cleared
 
 exports.votereminder = !->
 	settings = Db.shared.get 'settings'
-	name = settings.title + tr(' of the ') + periodname(settings.period)
+	name = settings.name + tr(' of the ') + periodname(settings.period)
 
 	include = []
 	for userId in Plugin.userIds() when !Db.personal(userId).get 'vote'
