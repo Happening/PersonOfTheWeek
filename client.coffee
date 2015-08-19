@@ -15,156 +15,150 @@ Social = require 'social'
 Time = require 'time'
 Ui = require 'ui'
 {tr} = require 'i18n'
-		
-exports.render = !->
 
-	unless period = Db.shared.get('cfg','period')
-		# should only happen for dev group
-		Dom.text tr "Not configured yet."
-		return
+
+renderTimeLeft = (time) !->
+	Time.deltaText time, [
+		60*60, 60*60, "%1 hour|s left"
+		40, 60, "%1 minute|s left"
+		10, 9999, "almost out of time"
+	]
+
+
+renderVoteNow = (current) !->
 	userId = Plugin.userId()
-
 	Dom.section !->
-		Dom.style Box: "middle center"
-		
-		current = Db.shared.get('current')
-
-		renderImage current?.photo, 34, 'fastforward'
-
 		Dom.div !->
-			Dom.style
-				Flex: 1
-				marginLeft: '12px'
-			if current
-				Dom.h4 tr "who should be..."
-				Dom.h3 Config.awardName(current.what, period) + '?'
-				if !current.votes?[userId]
-					Ui.button tr "Vote now!"
+			Dom.style Box: "top"
+			renderImage current?.photo, 80
 
-				Time.deltaText current.endTime, [
-					60*60, 60*60, "%1 hour|s remaining"
-					40, 60, "%1 minute|s remaining"
-					10, 9999, "almost no time"
-				]
-			else
-				Dom.h3 tr "Start a new vote..."
-		
-		Dom.onTap !->
-			if current
-				selectMemberModal()
-			else
-				selectTopicModal()
-
-			
-	###
-
-	if !Page.state.peek(0)
-		Page.state.set 0, Db.shared.peek('roundcounter')
-
-	Obs.observe !->
-		roundId = +Page.state.get(0)
-		Page.state.set 'isMain', true
-		Event.showStar tr("this round")
-
-		if roundId is Db.shared.get('roundcounter')
-			Event.markRead [] # clear top-level events (left by previous versions of the plugin)
-
-		if roundId is Db.shared.get('roundcounter') and Db.shared.get('votesopen')
-			renderPending roundId
-		else
-			renderWinner roundId
-		
-		Dom.div !->
-			Dom.style margin: '25px 0 0'
-			Social.renderComments
-				path: [roundId]
-				closed: roundId isnt Db.shared.get('roundcounter')
-				render: (comment) !->
-					if comment.s
-						Dom.div !->
-							Dom.style margin: '6px 0 6px 56px', fontSize: '70%'
-
-							Dom.span !->
-								Dom.style color: '#999'
-								Time.deltaText comment.t
-								Dom.text " • "
-
-							Dom.text comment.c
-						return true # We're rendering these type of comments
-
-	Page.setFooter !->
-		maxId = Db.shared.get('roundcounter')
-		return if maxId is 1
-
-		Dom.style
-			boxShadow: '0 1px 6px rgba(0, 0, 0, 0.4)'
-			backgroundColor: '#fff'
-			margin: '8px 8px 12px 8px'
-			borderRadius: '2px'
-			whiteSpace: 'nowrap'
-			color: '#aaa'
-
-		Dom.overflow()
-		Dom.div !->
-			Dom.style Box: "inline middle center"
-
-			#Obs.observe !->
-			#	if !Db.shared.get('winners', maxId)
-			#		renderFootItem maxId # no winner of current round yet
-
-			# iterate over all rounds, show those with comments and/or a winner...
-			for roundId in [maxId..1] then do (roundId) !->
-				if roundWinner = Db.shared.get 'winners', roundId
-					renderFootItem roundId, roundWinner
-				else if roundId is maxId or Db.shared.get('comments', roundId, 'max')
-					renderFootItem roundId
-
-	###
-
-
-renderImage = (photo, size, icon) !->
-		if photo
 			Dom.div !->
 				Dom.style
-					width: size+'px'
-					height: size+'px'
-					backgroundImage: Photo.url(photo)
-					backgroundSize: 'cover'
-		else
-			Icon.render data: icon, style: { display: 'block' }, size: size
+					Flex: 1
+					marginLeft: '12px'
+					textAlign: 'right'
+				Dom.h3 !->
+					Dom.style margin: 0
+					Dom.text Config.awardName(current.name, getPeriod())
+				Dom.div current.descr
+				if Db.shared.get('votes',userId)
+					Dom.div !->
+						Dom.style fontWeight: 'bold', marginTop: '5px'
+						Dom.text tr 'Voting... '
+						renderTimeLeft current.endTime
+						Dom.text tr "!"
+				else
+					Ui.button !->
+						Dom.style textAlign: 'center', marginRight: 0, display: 'inline-block'
+						Dom.text tr "Vote now!"
+						Dom.div !->
+							Dom.style fontSize: '80%'
+							renderTimeLeft current.endTime
+		Dom.onTap !->
+			selectMemberModal current.name, Db.shared.peek('votes',userId)
 
 
-selectTopicModal = (value, handleChange) !->
-	period = Db.shared.get('cfg','period')
-	Modal.show tr("Start a vote for"), !->
-		Dom.style width: '80%'
+renderNewVote = !->
+	Dom.section !->
+		Dom.h3 tr "Start a new vote..."
+
 		Dom.div !->
-			Dom.style
-				maxHeight: '40%'
-				backgroundColor: '#eee'
-				margin: '-12px'
-			Dom.overflow()
+			Dom.overflow() # horizontal scrolling
+			Dom.style Box: "top"
 
-			repeatTime = Plugin.time() - Config.periodTime(period)
+			periodTime = Config.periodTime(getPeriod())
 
 			Db.shared.iterate 'cfg', 'topics', (opt) !->
-				Ui.item !->
-					renderImage opt.get('photo'), 24, 'award4'
+				Dom.div !->
+					Dom.style
+						width: "100px"
+						textAlign: "center"
+						padding: "0 10px 10px 10px"
+					renderImage opt.get('photo'), 100
+					awardName = Config.awardName(opt.get('name'), getPeriod())
 					Dom.div !->
-						Dom.text opt.get('name')
-						Dom.div !->
-							Dom.style color: '#999', fontSize: '85%'
-							Dom.text opt.get('descr')
+						Dom.text awardName
+					Dom.div !->
+						Dom.style color: '#999', fontSize: '85%'
+						Dom.text opt.get('descr')
 					Dom.onTap !->
-						Modal.remove()
-			, (opt) -> # sort
-				last = Db.shared.peek("topics", opt.key(), "last")
-				if !last || last < repeatTime
-					opt.peek('name')
-	, null
-	, ['cancel', tr("Cancel")]
+						Modal.confirm tr("Are you sure you want to know who is %1?",awardName), !->
+							Server.sync 'start', opt.key(), !->
+								Db.shared.set 'current', opt.get()
+			, (opt) -> # filter and sort
+				if Obs.timePassed periodTime + (0 | Db.shared.peek("last", opt.get('name')))
+					999*Math.random()
 
-selectMemberModal = (value, handleChange) !->
+
+periodCache = null # cannot change; cache it!
+getPeriod = ->
+	periodCache ||= Db.shared.get('cfg','period')
+
+
+exports.render = !->
+
+	unless getPeriod() # should only happen for dev group
+		return Dom.text tr "Not configured yet."
+
+	if showRound = Page.state.get 0
+		return renderRoundPage showRound
+
+	if current = Db.shared.get('current')
+		renderVoteNow current
+	else
+		renderNewVote()
+
+	negRoundMax = Obs.create()
+	Obs.observe !->
+		negRoundMax.set -Db.shared.get('roundMax')
+
+	Loglist.render negRoundMax, -1, (round) !->
+		renderRound -round
+
+
+renderRoundPage = (num) !->
+	Event.showStar tr "this award's comments"
+	renderRound num, true
+	Social.renderComments path: [num]
+
+
+renderRound = (num,inPage) !->
+	return unless round = Db.shared.get 'rounds', num
+	Dom.section !->
+		Dom.style Box: "middle"
+		Ui.avatar Plugin.userAvatar round.winner, size: 42
+		Dom.div !->
+			Dom.style textAlign: "center", margin: '0 8px', Flex: 1
+			Time.deltaText round.endTime
+			Dom.h3 !->
+				Dom.style margin: 0, color: (if Event.isNew(round.endTime) then '#5b0' else 'inherit')
+				Dom.text tr "%1 is %2", Plugin.userName(round.winner), Config.awardName(round.name,getPeriod())
+				Event.renderBubble [num], style: margin: '-3px 0 0 8px'
+		renderImage round.photo, 42
+		if !inPage
+			Dom.onTap !->
+				Page.nav [num]
+
+
+renderImage = (photo, size, icon, onTap) !->
+	if photo
+		url = if photo.indexOf('/')>=0 then photo else Photo.url(photo, size*1.5)
+		Dom.div !->
+			Dom.style
+				width: size+'px'
+				height: size+'px'
+				backgroundImage: "url(#{url})"
+				backgroundSize: 'cover'
+				borderRadius: (size/2)+'px'
+			Dom.onTap onTap if onTap
+	else
+		Icon.render data: (icon||'award4'), style: { display: 'block' }, size: size, onTap: onTap
+
+
+selectMemberModal = (topic,oldId) !->
+	choose = (newId) !->
+		Server.sync 'vote', topic, newId, !->
+			Db.shared.set 'votes', Plugin.userId(), newId
 	Modal.show tr("Vote for"), !->
 		Dom.style width: '80%'
 		Dom.div !->
@@ -179,7 +173,7 @@ selectMemberModal = (value, handleChange) !->
 					Ui.avatar user.get('avatar')
 					Dom.text user.get('name')
 
-					if +user.key() is +value.get()
+					if +user.key() is oldId
 						Dom.style fontWeight: 'bold'
 
 						Dom.div !->
@@ -192,48 +186,13 @@ selectMemberModal = (value, handleChange) !->
 							Dom.text "✓"
 
 					Dom.onTap !->
-						handleChange user.key()
-						value.set user.key()
+						choose +user.key()
 						Modal.remove()
 	, (choice) !->
 		if choice is 'clear'
-			handleChange ''
-			value.set ''
-	, if value.get() then ['cancel', tr("Cancel"), 'clear', tr("Clear")] else ['cancel', tr("Cancel")]
+			choose null
+	, if oldId then ['cancel', tr("Cancel"), 'clear', tr("Clear")] else ['cancel', tr("Cancel")]
 
-
-showAwardSetting = (opt,newThumbs,onTap) !->
-	Ui.item !->
-		Dom.onTap onTap
-		Dom.style
-			position: 'relative'
-			height: '60px'
-
-		url = newThumbs[opt.key()]
-		if !url
-			url = opt.get('photo')
-			if url
-				url = Photo.url(url,200)
-
-		Dom.div !->
-			Dom.style
-				marginRight: '10px'
-				width: '50px'
-				height: '50px'
-				minWidth: '50px'
-				borderRadius: '25px'
-				background: "url(#{url}) 50% 50% no-repeat" if url
-				backgroundSize: '50px'
-		Dom.div !->
-			Dom.style Flex: 1
-			Dom.text opt.get('name') || tr('Add an award')
-			Dom.div !->
-				Dom.style
-					fontStyle: 'italic'
-					fontSize: '80%'
-					fontWeight: 'normal'
-					color: '#aaa'
-				Dom.text opt.get('descr') || ''
 
 exports.renderSettings = !->
 	# Once the rounds have been started, do not allow changing
@@ -286,9 +245,9 @@ exports.renderSettings = !->
 
 	topics.iterate (opt) !->
 		if editing.get opt.key()
-			editAwardSetting opt, newThumbs
+			renderSettingsEditAward opt, newThumbs
 		else
-			showAwardSetting opt, newThumbs, !->
+			renderSettingsShowAward opt, newThumbs, !->
 				e = {}
 				e[opt.key()] = true
 				editing.set e
@@ -299,52 +258,54 @@ exports.renderSettings = !->
 	Obs.observe !->
 		opt = topics.get(maxId.get())
 		log maxId.get(), opt
-		if !opt || (opt.name && opt.descr)
+		if !opt || opt.name
 			topics.set maxId.incr(), {}
 
 	Form.addObs 'topics', topics
 
-editAwardSetting = (opt,newThumbs) !->
+
+renderSettingsShowAward = (opt,newThumbs,onTap) !->
+	Ui.item !->
+		Dom.onTap onTap
+		Dom.style
+			position: 'relative'
+			height: '60px'
+
+		photo = newThumbs[opt.key()]
+		if !photo
+			photo = opt.get('photo')
+
+		renderImage photo, 50
+		Dom.div !->
+			Dom.style Flex: 1, marginLeft: '12px'
+			Dom.text opt.get('name') || tr('Add an award')
+			Dom.div !->
+				Dom.style
+					fontStyle: 'italic'
+					fontSize: '80%'
+					fontWeight: 'normal'
+					color: '#aaa'
+				Dom.text opt.get('descr') || ''
+
+
+renderSettingsEditAward = (opt,newThumbs) !->
 	Ui.item !->
 		Dom.style
 			position: 'relative'
 			marginBottom: '25px'
 
-		Dom.div !-> # photo
-			Dom.style
-				position: 'relative'
-				verticalAlign: 'top'
-				marginRight: '10px'
-				border: 'dashed 2px #aaa'
-				borderRadius: '25px'
-				height: '50px'
-				width: '50px'
-				minHeight: '50px'
-				minWidth: '50px'
+		if photo = Photo.unclaimed 'img'+opt.key()
+			opt.set 'guid', photo.claim()
+			opt.set 'photo', null
+			newThumbs[opt.key()] = photo.thumb
 
-			if photo = Photo.unclaimed 'img'+opt.key()
-				opt.set 'guid', photo.claim()
-				opt.set 'photo', null
-				newThumbs[opt.key()] = photo.thumb
-
-			backgroundsize = 'cover'
-			url = newThumbs[opt.key()]
-			if !url
-				url = opt.get('photo')
-				if url
-					url = Photo.url(url,200)
-				else
-					url = Plugin.resourceUri 'addphoto.png'
-					backgroundsize = '20px'
-
-			Dom.style
-				background:  "url(#{url}) 50% 50% no-repeat"
-				backgroundSize: backgroundsize
-			Dom.onTap !->
-				Photo.pick null, null, 'img'+opt.key()
+		backgroundsize = 'cover'
+		photo = newThumbs[opt.key()] || opt.get('photo')
+		renderImage photo, 50, 'addphoto', !->
+			Photo.pick null, null, 'img'+opt.key()
 
 		Dom.div !->
-			Dom.style Flex: 1
+			Dom.style Flex: 1, marginLeft: '12px'
 			Dom.div !->
 				Dom.style Box: "middle"
 				Form.input
@@ -364,39 +325,4 @@ editAwardSetting = (opt,newThumbs) !->
 					value: opt.peek('descr') || ''
 					onChange: (v) !-> opt.set 'descr', v
 					rows: 1
-
-getPhotoUrl = ->
-	if key = Db.shared.get('settings', 'photo', 'key')
-		Photo.url key, 250
-	else if key = Db.shared.get('settings', 'photo')
-		Plugin.resourceUri(key)
-	else
-		Plugin.resourceUri('unknown.jpg')
-
-renderPicture = (roundId) !->
-	Dom.div !->
-		Dom.style
-			margin: '15px auto'
-			width: '250px'
-		if winner = Db.shared.get('winners', roundId)
-			Ui.avatar Plugin.userAvatar(winner),
-				style:
-					height: '250px'
-					width: '250px'
-					borderRadius: '250px'
-					border: '1px solid #aaa'
-					boxShadow: '0 2px 8px #aaa'
-				size: 250
-		else
-			Dom.div !->
-				Dom.style
-					background: "url(#{getPhotoUrl()}) 50% 50% no-repeat"
-					backgroundSize: 'cover'
-					width: '250px'
-					height: '250px'
-					backgroundRepeat: 'no-repeat'
-					borderRadius: '125px'
-					boxShadow: '0 2px 8px #aaa'
-					border: '1px solid #aaa'
-		
 

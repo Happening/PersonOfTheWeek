@@ -4,15 +4,15 @@ exports.getDefault = ->
 	period: 'week'
 	topics:
 		1: {name: tr('Panda'), descr: tr('Too lazy to reproduce, and thus doomed to extinction.'), photo: 'panda.jpg'},
-		2: {name: tr('Grizzly'), descr: tr('A bear with a terrible temper. Approach at your own risk.'), photo: 'grizzly.jpg'}
-		3: {name: tr('Peacock'), descr: tr('A vain bird that loves to show everyone just how awesome it is.'), photo: 'peacock.jpg'}
-		4: {name: tr('Puppy'), descr: tr('Young, playful, foolish. But at end of day, just very cute.'), photo: 'pup.jpg'}
-		5: {name: tr('Snail'), descr: tr('Not everyone can think and work that fast.'), photo:'snail.jpg'}
-		6: {name: tr('Donkey'), descr: tr('Extremely stupid, but too stubborn to admit it.'), photo:'donkey.jpg'}
-		7: {name: tr('Meerkat'), descr: tr('Very paranoid. Probably with good reason.'), photo:'meerkat.jpg'}
-		8: {name: tr('Mole'), descr: tr('Almost never seen.'), photo:'mole.jpg'}
-	optionMax: 8
-
+		2: {name: tr('Grizzly'), descr: tr('Terrible temper! Approach at your own risk.'), photo: 'grizzly.jpg'}
+		3: {name: tr('Peacock'), descr: tr('This vain creature truly believes that it\'s awesome.'), photo: 'peacock.jpg'}
+		4: {name: tr('Puppy'), descr: tr('Young, playful, foolish. Awww... cute!'), photo: 'pup.jpg'}
+		5: {name: tr('Snail'), descr: tr('Thinking and working fast just isn\'t for everybody.'), photo:'snail.jpg'}
+		6: {name: tr('Donkey'), descr: tr('Often very wrong, but way too stubborn to admit it.'), photo:'donkey.jpg'}
+		7: {name: tr('Mole'), descr: tr('Almost never seen.'), photo:'mole.jpg'}
+		8: {name: tr('Owl'), descr: tr('Sleeps during the day.'), photo:'owl.jpg'}
+		9: {name: tr('Pig'), descr: tr('Eats and drinks whatever it comes across.'), photo:'pig.jpg'}
+		10: {name: tr('Rabbit'), descr: tr('Known for its legendary drive to reproduce.'), photo:'rabbit.jpg'}
 
 exports.periodTime = (period) ->
 	{

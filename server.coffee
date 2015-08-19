@@ -6,14 +6,38 @@ Plugin = require 'plugin'
 Timer = require 'timer'
 {tr} = require 'i18n'
 
+
 exports.onInstall = (config) !->
 	onConfig(config || require('config').getDefault())
 
+
+exports.client_start = (topicId) !->
+	if !Db.shared.get('current') and (period = Db.shared.get 'cfg','period') and (topic = Db.shared.get 'cfg', 'topics', topicId)
+		time = Config.voteTime(period)
+		topic.by = Plugin.userId()
+		topic.endTime = Plugin.time() + time
+		Db.shared.set 'current', topic
+		Timer.set time*1000, 'close'
+		Event.create
+			text: tr("%1 election started by %2!", Config.awardName(topic.name,period), Plugin.userName())
+
+
+exports.client_vote = (topic, vote) !->
+	if Db.shared.get('current','name')==topic
+		Db.shared.set 'votes', Plugin.userId(), vote
+
+
+ucfirst = (str) ->
+	str.substr(0,1).toUpperCase() + str.substr(1)
+
+
 exports.onConfig = onConfig = (config) !->
 	for id,topic of config.topics
-		if !topic.name || !topic.descr
+		if !topic.name
 			delete config.topics[id]
 		else if topic.guid
+			topic.name = ucfirst(topic.name)
+			topic.descr = ucfirst(topic.descr) if topic.descr
 			delete config.topics[id]
 			guid = topic.guid
 			delete topic.guid
@@ -25,131 +49,41 @@ exports.onConfig = onConfig = (config) !->
 
 	Db.shared.set 'cfg', config
 
+
 exports.onPhoto = (info, [id,topic]) !->
 	topic.photo = info.key
 	Db.shared.set 'cfg', 'topics', id, topic
 
+
 exports.getTitle = ->
-	Config.getName(tr("Person"), Db.shared.get('cfg', 'period'))
+	if period = Db.shared.get 'cfg', 'period'
+		Config.getName(tr("Person"), period)
 
-
-exports.client_endRound = !->
-	if Plugin.userIsAdmin()
-		exports.close()
-
-exports.client_startRound = !->
-	if Plugin.userIsAdmin()
-		exports.start()
 
 exports.close = !->
-	votes = {}
-	settings = Db.shared.get 'settings'
-	roundnumber = Db.shared.get 'roundcounter'
-	for uid in Plugin.userIds()
-		v = Db.personal(uid).get('vote')
-		if v then votes[v] = (0|votes[v]) + 1
-		Db.personal(uid).set('vote', 0)
+	current = Db.shared.get 'current'
 	
+	votes = {}
+	for fromUser,toUser of Db.shared.get('votes')
+		votes[toUser] = (votes[toUser]||Math.random()) + 1
+
 	winner = 0
-	for uid, numvotes of votes
-		if !Plugin.userName(uid) then continue
-		if winner == 0 || numvotes > votes[winner]
-			winner = uid
+	for toUser, cnt of votes
+		if !winner or cnt > votes[winner]
+			winner = toUser
 
-	if winner > 0
-		Db.shared.set 'winners', roundnumber, winner
+	Db.shared.set 'votes', null
+	Db.shared.set 'current', null
 
-	Db.shared.set 'votesopen', false
+	log 'winner',winner,current
+	return unless winner
+	current.winner = winner
+	round = Db.shared.incr 'roundMax'
+	Db.shared.set 'rounds', round, current
+	Db.shared.set 'last', current.name, Plugin.time()
 
-	name = settings.name + tr(' of the ') + periodname (Db.shared.get 'settings', 'period')
+	name = Config.awardName(current.name, Db.shared.get('cfg','period'))
 	Event.create
-		text: tr('The winner for ')+name+tr(' is in!')
+		text: tr('%1 is %2!', Plugin.userName(winner,name))
 		# default path, so they always get cleared
 
-	# Add a comment as a divider between old and new comments
-	if Db.shared.get 'comments', roundnumber
-		lastcomment = Db.shared.get 'comments', roundnumber, (Db.shared.get 'comments', roundnumber, 'max'), 'u'
-		if lastcomment != 0
-			winnername = if winner > 0 then (Plugin.userName winner) else tr('Nobody')
-			addComment winnername + tr(' won the award!')
-
-exports.client_vote = (v) !->
-	if (Db.shared.get 'votesopen')
-		uid = Plugin.userId()
-		Db.personal(uid).set('vote', v)
-
-exports.start = !->
-	settings = Db.shared.get 'settings'
-	if !settings?
-		log 'settings is not an object'
-		return
-	voteperiod = settings.voteperiod
-	totalperiod = settings.totalperiod
-
-	Timer.cancel()
-	if voteperiod >= 86400
-		newvoteclose = Math.floor(Plugin.time()/86400) * 86400 + voteperiod
-		nextround = Math.floor(Plugin.time()/86400) * 86400 + totalperiod
-	else
-		newvoteclose = Math.floor(Plugin.time() + voteperiod)
-		nextround = Math.floor(Plugin.time() + totalperiod)
-
-	Db.shared.set 'nextround', nextround
-	Db.shared.set 'voteclose', newvoteclose
-	Db.shared.set 'votesopen', true
-	Db.shared.set 'roundcounter', (0|Db.shared.get 'roundcounter') + 1
-
-	newclosetime = (newvoteclose - Plugin.time()) * 1000
-	newremindtime = (Math.round((newvoteclose - Plugin.time()) * 0.7)) * 1000
-	newstarttime = (nextround - Plugin.time()) * 1000
-
-	if !(newclosetime >= 120000 && newremindtime >= 120000 && newstarttime >= 120000)
-		log "INVALID PLUGIN STATE: Awards plugin attempted to set a timer for less than 2 minutes, possible even negative."
-		log "Plugin settings: (voteperiod, totalperiod) values ", voteperiod, totalperiod
-		log "Newclosetime:", newclosetime
-		log "Newremindtime:", newremindtime
-		log "Newstarttime:", newstarttime
-		log "Will NOT start a new round."
-		return
-
-	log "Starting a new round. Plugintime, newremindtime, newstarttime:", Plugin.time(), newremindtime, newstarttime
-
-	Timer.set newclosetime, 'close'
-	Timer.set newremindtime, 'votereminder'
-	Timer.set newstarttime, 'start'
-
-	name = settings.name + tr(' of the ') + periodname(settings.period)
-	Event.create
-		text: tr('The votes for ')+name+tr(' have been opened!')
-		# default path, so they always get cleared
-
-exports.votereminder = !->
-	settings = Db.shared.get 'settings'
-	name = settings.name + tr(' of the ') + periodname(settings.period)
-
-	include = []
-	for userId in Plugin.userIds() when !Db.personal(userId).get 'vote'
-		include.push userId
-
-	Event.create
-		text: tr('Do not forget to vote for ')+name+'!'
-		# default path, so they always get cleared
-
-periodname = (period) !->
-	if period == 'day'
-		return tr('day')
-	else if period == 'week'
-		return tr('week')
-	else if period == 'month'
-		return tr('month')
-
-addComment = (comment) !->
-	comment =
-		t: 0|Plugin.time()
-		u: 0
-		s: true
-		c: comment
-
-	comments = Db.shared.createRef("comments", Db.shared.get 'roundcounter')
-	max = comments.incr 'max'
-	comments.set max, comment
