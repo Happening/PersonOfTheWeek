@@ -3,16 +3,16 @@
 exports.getDefault = ->
 	period: 'week'
 	topics:
-		1: {name: tr('Panda'), descr: tr('Too lazy to reproduce, and thus doomed to extinction.'), photo: 'panda.jpg'},
-		2: {name: tr('Grizzly'), descr: tr('Terrible temper! Approach at your own risk.'), photo: 'grizzly.jpg'}
-		3: {name: tr('Peacock'), descr: tr('This vain creature truly believes that it\'s awesome.'), photo: 'peacock.jpg'}
-		4: {name: tr('Puppy'), descr: tr('Young, playful, foolish. Awww... cute!'), photo: 'pup.jpg'}
-		5: {name: tr('Snail'), descr: tr('Thinking and working fast just isn\'t for everybody.'), photo:'snail.jpg'}
-		6: {name: tr('Donkey'), descr: tr('Often very wrong, but way too stubborn to admit it.'), photo:'donkey.jpg'}
-		7: {name: tr('Mole'), descr: tr('Almost never seen.'), photo:'mole.jpg'}
-		8: {name: tr('Owl'), descr: tr('Sleeps during the day.'), photo:'owl.jpg'}
-		9: {name: tr('Pig'), descr: tr('Eats and drinks whatever it comes across.'), photo:'pig.jpg'}
-		10: {name: tr('Rabbit'), descr: tr('Known for its legendary drive to reproduce.'), photo:'rabbit.jpg'}
+		1: {name: tr('Player'), descr: tr('Smooth talker with a healthy reproductive drive.'), photo: 'player.jpg'}
+		2: {name: tr('Hero'), descr: tr('Accomplishes great things for the collective.'), photo: 'hero.jpg'}
+		3: {name: tr('Disappointment'), descr: tr('We had such great hopes for this one.'), photo: 'disappointment.jpg'}
+		4: {name: tr('Beggar'), descr: tr('Always ‘borrowing’, never sharing.'), photo: 'beggar.jpg'}
+		5: {name: tr('Grumpy'), descr: tr('Terrible temper! Approach at your own risk.'), photo: 'grumpy.jpg'}
+		6: {name: tr('Princess'), descr: tr('Too frail to even look at. Careful!'), photo: 'princess.jpg'}
+		7: {name: tr('Ghost'), descr: tr('Rarely seen. Might not even exist at all.'), photo: 'ghost.jpg'}
+		8: {name: tr('Zombie'), descr: tr('Could perhaps use a little more sleep.'), photo: 'zombie.jpg'}
+		9: {name: tr('Pig'), descr: tr('Eats and drinks whatever it comes across.'), photo: 'pig.jpg'}
+		10: {name: tr('Yoda'), descr: tr('Riddles, this one talks in.'), photo: 'yoda.jpg'}
 
 exports.periodTime = (period) ->
 	{

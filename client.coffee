@@ -71,6 +71,7 @@ renderNewVote = !->
 			Db.shared.iterate 'cfg', 'topics', (opt) !->
 				Dom.div !->
 					Dom.style
+						minWidth: "100px"
 						width: "100px"
 						textAlign: "center"
 						padding: "0 10px 10px 10px"
@@ -110,7 +111,7 @@ exports.render = !->
 
 	negRoundMax = Obs.create()
 	Obs.observe !->
-		negRoundMax.set -Db.shared.get('roundMax')
+		negRoundMax.set -(Db.shared.get('roundMax')||0)
 
 	Loglist.render negRoundMax, -1, (round) !->
 		renderRound -round
@@ -149,6 +150,7 @@ renderImage = (photo, size, icon, onTap) !->
 				height: size+'px'
 				backgroundImage: "url(#{url})"
 				backgroundSize: 'cover'
+				backgroundPosition: '50% 50%'
 				borderRadius: (size/2)+'px'
 			Dom.onTap onTap if onTap
 	else

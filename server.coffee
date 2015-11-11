@@ -8,7 +8,15 @@ Timer = require 'timer'
 
 
 exports.onInstall = (config) !->
-	onConfig(config || require('config').getDefault())
+	defaults = require('config').getDefault()
+	if config
+		if !config.period
+			config.period = defaults.period
+		if !config.topics
+			config.topics = defaults.topics
+	else
+		config = defaults
+	onConfig(config)
 
 
 exports.client_start = (topicId) !->
@@ -30,6 +38,8 @@ exports.client_vote = (topic, vote) !->
 ucfirst = (str) ->
 	str.substr(0,1).toUpperCase() + str.substr(1)
 
+exports.onUpgrade = !->
+	log 'onUpgrade'
 
 exports.onConfig = onConfig = (config) !->
 	for id,topic of config.topics
@@ -57,7 +67,7 @@ exports.onPhoto = (info, [id,topic]) !->
 
 exports.getTitle = ->
 	if period = Db.shared.get 'cfg', 'period'
-		Config.getName(tr("Person"), period)
+		Config.awardName(tr("Person"), period)
 
 
 exports.close = !->
@@ -84,6 +94,6 @@ exports.close = !->
 
 	name = Config.awardName(current.name, Db.shared.get('cfg','period'))
 	Event.create
-		text: tr('%1 is %2!', Plugin.userName(winner,name))
+		text: tr('%1 is %2!', Plugin.userName(winner), name)
 		# default path, so they always get cleared
 
