@@ -1,3 +1,4 @@
+Comments = require 'comments'
 Config = require 'config'
 Db = require 'db'
 Dom = require 'dom'
@@ -9,9 +10,8 @@ Modal = require 'modal'
 Obs = require 'obs'
 Page = require 'page'
 Photo = require 'photo'
-Plugin = require 'plugin'
+App = require 'app'
 Server = require 'server'
-Social = require 'social'
 Time = require 'time'
 Ui = require 'ui'
 {tr} = require 'i18n'
@@ -26,41 +26,43 @@ renderTimeLeft = (time) !->
 
 
 renderVoteNow = (current) !->
-	userId = Plugin.userId()
+	userId = App.userId()
 	Dom.section !->
-		Dom.div !->
-			Dom.style Box: "top"
-			renderImage current?.photo, 80
+		Dom.style Box: "top", padding: '12px'
+		renderImage current?.photo, 80
 
-			Dom.div !->
-				Dom.style
-					Flex: 1
-					marginLeft: '12px'
-					textAlign: 'right'
-				Dom.h3 !->
-					Dom.style margin: 0
-					Dom.text Config.awardName(current.name, getPeriod())
-				Dom.div current.descr
-				if Db.shared.get('votes',userId)
+		Dom.div !->
+			Dom.style
+				Flex: 1
+				marginLeft: '12px'
+				textAlign: 'right'
+			Dom.h3 !->
+				Dom.style margin: 0
+				Dom.text Config.awardName(current.name, getPeriod())
+			Dom.div current.descr
+			if Db.shared.get('votes',userId)
+				Dom.div !->
+					Dom.style fontWeight: 'bold', marginTop: '5px'
+					Dom.text tr 'Voting... '
+					renderTimeLeft current.endTime
+					Dom.text tr "!"
+			else
+				Ui.button !->
+					Dom.style textAlign: 'center', marginRight: 0, display: 'inline-block'
+					Dom.text tr "Vote now!"
 					Dom.div !->
-						Dom.style fontWeight: 'bold', marginTop: '5px'
-						Dom.text tr 'Voting... '
+						Dom.style fontSize: '80%'
 						renderTimeLeft current.endTime
-						Dom.text tr "!"
-				else
-					Ui.button !->
-						Dom.style textAlign: 'center', marginRight: 0, display: 'inline-block'
-						Dom.text tr "Vote now!"
-						Dom.div !->
-							Dom.style fontSize: '80%'
-							renderTimeLeft current.endTime
 		Dom.onTap !->
 			selectMemberModal current.name, Db.shared.peek('votes',userId)
 
 
 renderNewVote = !->
-	Dom.section !->
-		Dom.h3 tr "Start a new vote..."
+	Ui.top !->
+		Dom.style padding: 0
+		Dom.div !->
+			Dom.style padding: 12
+			Dom.h3 tr "Start a new vote..."
 
 		Dom.div !->
 			Dom.overflow() # horizontal scrolling
@@ -118,22 +120,22 @@ exports.render = !->
 
 
 renderRoundPage = (num) !->
-	Event.showStar tr "this award's comments"
+	Event.showStar tr "this award's messages"
 	renderRound num, true
-	Social.renderComments path: [num]
+	Comments.enable store: ['comments',num]
 
 
 renderRound = (num,inPage) !->
 	return unless round = Db.shared.get 'rounds', num
-	Dom.section !->
+	Form.row !->
 		Dom.style Box: "middle"
-		Ui.avatar Plugin.userAvatar round.winner, size: 42
+		Ui.avatar App.userAvatar round.winner, size: 42
 		Dom.div !->
 			Dom.style textAlign: "center", margin: '0 8px', Flex: 1
 			Time.deltaText round.endTime
 			Dom.h3 !->
 				Dom.style margin: 0, color: (if Event.isNew(round.endTime) then '#5b0' else 'inherit')
-				Dom.text tr "%1 is %2", Plugin.userName(round.winner), Config.awardName(round.name,getPeriod())
+				Dom.text tr "%1 is %2", App.userName(round.winner), Config.awardName(round.name,getPeriod())
 				Event.renderBubble [num], style: margin: '-3px 0 0 8px'
 		renderImage round.photo, 42
 		if !inPage
@@ -160,36 +162,28 @@ renderImage = (photo, size, icon, onTap) !->
 selectMemberModal = (topic,oldId) !->
 	choose = (newId) !->
 		Server.sync 'vote', topic, newId, !->
-			Db.shared.set 'votes', Plugin.userId(), newId
+			Db.shared.set 'votes', App.userId(), newId
 	Modal.show tr("Vote for"), !->
-		Dom.style width: '80%'
-		Dom.div !->
-			Dom.style
-				maxHeight: '40%'
-				backgroundColor: '#eee'
-				margin: '-12px'
-			Dom.overflow()
+		App.users.iterate (user) !->
+			Ui.item !->
+				Ui.avatar user.get('avatar')
+				Dom.text user.get('name')
 
-			Plugin.users.iterate (user) !->
-				Ui.item !->
-					Ui.avatar user.get('avatar')
-					Dom.text user.get('name')
+				if +user.key() is oldId
+					Dom.style fontWeight: 'bold'
 
-					if +user.key() is oldId
-						Dom.style fontWeight: 'bold'
+					Dom.div !->
+						Dom.style
+							Flex: 1
+							padding: '0 10px'
+							textAlign: 'right'
+							fontSize: '150%'
+							color: App.colors().highlight
+						Dom.text "✓"
 
-						Dom.div !->
-							Dom.style
-								Flex: 1
-								padding: '0 10px'
-								textAlign: 'right'
-								fontSize: '150%'
-								color: Plugin.colors().highlight
-							Dom.text "✓"
-
-					Dom.onTap !->
-						choose +user.key()
-						Modal.remove()
+				Dom.onTap !->
+					choose +user.key()
+					Modal.remove()
 	, (choice) !->
 		if choice is 'clear'
 			choose null
@@ -201,13 +195,10 @@ exports.renderSettings = !->
 	if !Db.shared or !Db.shared.get('cfg','period')
 		periodO = Obs.create 'week'
 		Form.addObs 'period', periodO
-		Form.box !->
+		Form.row !->
 			Dom.style
-				fontSize: '125%'
-				paddingRight: '56px'
-				borderTop: '1px solid #ddd'
 				borderBottom: '1px solid #ddd'
-			Dom.text "Award period"
+			Dom.div !-> Dom.text "Award period"
 			Dom.div Config.awardName("Person",periodO.get())
 			Dom.onTap !->
 				Modal.show tr('Award period'), !->
@@ -216,26 +207,23 @@ exports.renderSettings = !->
 						['week', Config.awardName('Person','week')]
 						['month', Config.awardName('Person','month')]
 					]
-					Dom.div !->
-						Dom.style margin: '-12px'
-						for p in periods
-							Ui.item !->
-								if p[0] == periodO.get()
-									Dom.style fontWeight: 'bold'
-									Dom.div !->
-										Dom.style
-											position: 'absolute'
-											width: '50px'
-											right: '-10px'
-											marginTop: '1px'
-											fontSize: '150%'
-											color: Plugin.colors().highlight
-										Dom.text '✔'
-								Dom.text p[1]
-								vp = p[0]
-								Dom.onTap !->
-									periodO.set vp
-									Modal.remove()
+					for p in periods
+						Ui.item !->
+							if p[0] == periodO.get()
+								Dom.style fontWeight: 'bold'
+								Dom.div !->
+									Dom.style
+										position: 'absolute'
+										right: '12px'
+										marginTop: '-4px'
+										fontSize: '150%'
+										color: App.colors().highlight
+									Dom.text '✔'
+							Dom.text p[1]
+							vp = p[0]
+							Dom.onTap !->
+								periodO.set vp
+								Modal.remove()
 				, undefined, ['cancel', tr("Cancel")]
 
 	config = (Db.shared.get('cfg') if Db.shared) || require('config').getDefault()
@@ -259,7 +247,6 @@ exports.renderSettings = !->
 	# Auto add an empty item when there are none, or when the last item is complete.
 	Obs.observe !->
 		opt = topics.get(maxId.get())
-		log maxId.get(), opt
 		if !opt || opt.name
 			topics.set maxId.incr(), {}
 
@@ -317,7 +304,7 @@ renderSettingsEditAward = (opt,newThumbs) !->
 					flex: true
 				Icon.render
 					style: marginLeft: "12px"
-					data: 'trash'
+					data: 'delete'
 					onTap: !-> opt.set(null)
 
 			Dom.div !->
@@ -326,5 +313,4 @@ renderSettingsEditAward = (opt,newThumbs) !->
 					text: 'Description'
 					value: opt.peek('descr') || ''
 					onChange: (v) !-> opt.set 'descr', v
-					rows: 1
 

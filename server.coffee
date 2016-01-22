@@ -2,7 +2,7 @@ Config = require 'config'
 Db = require 'db'
 Event = require 'event'
 Photo = require 'photo'
-Plugin = require 'plugin'
+App = require 'app'
 Timer = require 'timer'
 {tr} = require 'i18n'
 
@@ -22,17 +22,17 @@ exports.onInstall = (config) !->
 exports.client_start = (topicId) !->
 	if !Db.shared.get('current') and (period = Db.shared.get 'cfg','period') and (topic = Db.shared.get 'cfg', 'topics', topicId)
 		time = Config.voteTime(period)
-		topic.by = Plugin.userId()
-		topic.endTime = Plugin.time() + time
+		topic.by = App.userId()
+		topic.endTime = App.time() + time
 		Db.shared.set 'current', topic
 		Timer.set time*1000, 'close'
 		Event.create
-			text: tr("%1 election started by %2!", Config.awardName(topic.name,period), Plugin.userName())
+			text: tr("%1 election started by %2!", Config.awardName(topic.name,period), App.userName())
 
 
 exports.client_vote = (topic, vote) !->
 	if Db.shared.get('current','name')==topic
-		Db.shared.set 'votes', Plugin.userId(), vote
+		Db.shared.set 'votes', App.userId(), vote
 
 
 ucfirst = (str) ->
@@ -59,15 +59,13 @@ exports.onConfig = onConfig = (config) !->
 
 	Db.shared.set 'cfg', config
 
+	App.setTitle Config.awardName(tr("Person"), config.period)
+
+
 
 exports.onPhoto = (info, [id,topic]) !->
 	topic.photo = info.key
 	Db.shared.set 'cfg', 'topics', id, topic
-
-
-exports.getTitle = ->
-	if period = Db.shared.get 'cfg', 'period'
-		Config.awardName(tr("Person"), period)
 
 
 exports.close = !->
@@ -90,10 +88,10 @@ exports.close = !->
 	current.winner = winner
 	round = Db.shared.incr 'roundMax'
 	Db.shared.set 'rounds', round, current
-	Db.shared.set 'last', current.name, Plugin.time()
+	Db.shared.set 'last', current.name, App.time()
 
 	name = Config.awardName(current.name, Db.shared.get('cfg','period'))
 	Event.create
-		text: tr('%1 is %2!', Plugin.userName(winner), name)
+		text: tr('%1 is %2!', App.userName(winner), name)
 		# default path, so they always get cleared
 
